@@ -1,69 +1,101 @@
-# boh
+"This program connects to a Kenwood receiver and gets current frequency"
 
-import atexit
+import argparse
+import getpass
+import os
 import socket
 import time
-from errors import AuthException
+from tenacity import retry
+from tenacity.wait import wait_fixed
+
+from exceptions import AuthenticationException
 
 
-def do_auth(my_socket, user, password) -> None:
-    """Authentication"""
 
-    auth = f"##ID00508{user}{password};"
-    my_socket.sendall(auth.encode('utf-8'))
-    socket_data = my_socket.recv(1024)
-    if socket_data.decode('utf-8') != '##ID1;':
-        raise AuthException(socket_data.decode('utf-8'))
+def authenticate(sock, user, password) -> None:
+    "Authenticates to radio"
 
-    print("Authenticated")
-    my_socket.sendall(b"AI0;")
-    # data = s.recv(1024)
-    # print(f"Received {data!r}")
+    auth_string = f"##ID00508{user}{password};"
+    sock.sendall(auth_string.encode('utf-8'))
+    data = sock.recv(1024)
+    if data.decode('utf-8') != '##ID1;':
+        raise AuthenticationException(data.decode('utf-8'))
+
+    sock.sendall(b"AI0;")
 
 
-def do_connection(my_socket, host, port) -> None:
-    """Socket connection"""
+def start_connection(sock, host, port) -> None:
+    "Check connection to radio is available"
 
-    my_socket.connect((host, int(port)))
-    my_socket.sendall(b"##CN;")
-    socket_data = my_socket.recv(1024)
-    if socket_data.decode('utf-8') != '##CN1;':
+    sock.connect((host, port))
+    sock.sendall(b"##CN;")
+    data = sock.recv(1024)
+    if data.decode('utf-8') != '##CN1;':
         raise ConnectionError
 
 
-def do_other_stuff(my_socket) -> str:
-    """Do other stuff"""
+def get_frequency(sock) -> str:
+    "Query radio for frequency"
 
-    my_socket.sendall(b"FA;")
-    socket_data = my_socket.recv(1024)
-    decoded = socket_data.decode('utf-8')[2:].lstrip("0")[0:-3] + '00'
-    print(decoded)
-    return decoded
-
-
-def write_results(path, results) -> None:
-    """Write results"""
-
-    file = open(path, "w+", encoding="utf-8")
-    file.write(results)
+    sock.sendall(b"FA;")
+    data = sock.recv(1024)
+    #print(f"Received {data!r}")
+    frequency = data.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
+    return frequency
 
 
-def start(host, port, output, user, password):
-    """Main logic"""
+def save_frequency(path, data) -> None:
+    "Save frequency in a text file, overwriting it"
 
-    resulting_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    do_connection(resulting_socket, host, port)
-    do_auth(resulting_socket, user, password)
-    while True:
-        results = do_other_stuff(resulting_socket)
-        write_results(output, results)
-        time.sleep(1)
+    with open(path, "w", encoding="utf-8") as outfile:
+        outfile.write(data)
 
 
-def exit_handler():
-    print('\nThe application is terminating... writing to file...\n')
-    file = open('test_on_exit_file', 'w+')
-    file.write('Bye!')
+@retry(wait=wait_fixed(5))
+def main(host, port, outpath, user, password):
+    "Main function"
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        start_connection(sock, host, port)
+        authenticate(sock, user, password)
+        while True:
+            frequency = get_frequency(sock)
+            save_frequency(outpath, frequency)
+            time.sleep(1)
 
 
-atexit.register(exit_handler)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description="Connect to Kenwood receiver and save frequency to file"
+    )
+    parser.add_argument(dest='host',
+                        help="Hostname or IP of receiver",
+                        )
+    parser.add_argument(dest='port',
+                        help="Port to connect to",
+                        type=int,
+                        nargs="?"
+                        )
+    parser.add_argument(dest="outpath",
+                        help="Path of file to save to. CAUTION: File will be overwritten")
+    parser.add_argument('-u', "--user",
+                        dest="user",
+                        help='Username, or env var USER',
+                        default=os.environ.get("USER")
+                        )
+    parser.add_argument('-p', "--password",
+                        dest="password",
+                        # Save as True if flag is present, otherwise use env var
+                        action="store_true",
+                        help="Password (interactive) or env var PASSWORD",
+                        default=os.environ.get("PASSWORD")
+                        )
+    args_namespace = parser.parse_args()
+    args = vars(args_namespace)
+
+    if args.get("password") is True:
+        # if "password" is True, user passed -p flag. Ask for password
+        interactive_password = getpass.getpass()
+        args.update({"password": interactive_password})
+
+    # Call main passing dict as named args
+    main(**args)
