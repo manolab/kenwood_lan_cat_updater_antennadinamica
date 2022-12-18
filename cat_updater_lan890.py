@@ -1,50 +1,67 @@
-# boh
+"This program connects to a Kenwood receiver and gets current frequency"
 
 import socket
 import time
+from exceptions import AuthenticationException
 
-HOST="192.168.1.16"
-PORT=60000
-user="admin"
-password="normando"
+HOST = "192.168.1.16"
+PORT = 60000
+USER = "admin"
+PASSWORD = "normando"
 
-cat_status_fname = "/usr/local/share/ad/cat_status.txt"
-frequency_fname  = "/usr/local/share/ad/frequency.txt"
-
-# intanto metto -5 che dovrebbe essere 'non collegato'
-#t = open(frequency_fname, "w")
-#t.write('-5')
-#t.close()
-#0 è cat ok
+CAT_STATUS_PATH = "/usr/local/share/ad/cat_status.txt"
+FREQUENCY_PATH = "/usr/local/share/ad/frequency.txt"
 
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-try:
-    s.connect((HOST, PORT))
-    s.sendall(b"##CN;")
-    data = s.recv(1024)
-    if data.decode('utf-8') == '##CN1;':
-        print("Connected")
-        s.sendall(b"##ID00508adminnormando;")
-        data = s.recv(1024)
-        if data.decode('utf-8') == '##ID1;':
-            print("Authenticated")
+def authenticate(sock, user, password) -> None:
+    "Authenticates to radio"
 
-            s.sendall(b"AI0;")
-            #data = s.recv(1024)
-            #print(f"Received {data!r}")
+    auth_string = f"##ID00508{user}{password};"
+    sock.sendall(auth_string.encode('utf-8'))
+    data = sock.recv(1024)
+    if data.decode('utf-8') != '##ID1;':
+        raise AuthenticationException(data.decode('utf-8'))
 
-            while True:
-                s.sendall(b"FA;")
-                data = s.recv(1024)
-                #print(f"Received {data!r}")
-                frequency = data.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
-                print(frequency)
-                t = open(frequency_fname, "w")
-                t.write(frequency)
-                t.close()
-                time.sleep(1)
+    sock.sendall(b"AI0;")
 
-except socket.timeout:
-    # qui
-    print("ciao")
+
+def start_connection(sock, host, port) -> None:
+    "Check connection to radio is available"
+
+    sock.connect((host, port))
+    sock.sendall(b"##CN;")
+    data = sock.recv(1024)
+    if data.decode('utf-8') != '##CN1;':
+        raise ConnectionError
+
+
+def get_frequency(sock) -> str:
+    "Query radio for frequency"
+
+    sock.sendall(b"FA;")
+    data = sock.recv(1024)
+    #print(f"Received {data!r}")
+    frequency = data.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
+    return frequency
+
+
+def save_frequency(path, data) -> None:
+    "Save frequency in a text file, overwriting it"
+
+    with open(path, "w", encoding="utf-8") as outfile:
+        outfile.write(data)
+
+
+def main():
+    "Main function"
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        start_connection(socket, HOST, PORT)
+        authenticate(sock, USER, PASSWORD)
+        while True:
+            frequency = get_frequency(sock)
+            save_frequency(FREQUENCY_PATH, frequency)
+            time.sleep(1)
+
+
+if __name__ == '__main__':
+    main()
