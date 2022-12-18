@@ -1,0 +1,12 @@
+[Unit]
+After=network.target
+Description=Kenwood Frequency Scraper
+
+[Service]
+Restart=always
+RestartSec=10s
+WorkingDirectory=/home/federico/modbusnew/venv
+ExecStart=/home/federico/modbusnew/venv/bin/python /home/federico/modbusnew
+
+[Install]
+WantedBy=multi-user.service
