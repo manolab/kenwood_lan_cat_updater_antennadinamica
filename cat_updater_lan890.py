@@ -1,16 +1,11 @@
 "This program connects to a Kenwood receiver and gets current frequency"
 
+import argparse
+import getpass
+import os
 import socket
 import time
 from exceptions import AuthenticationException
-
-HOST = "192.168.1.16"
-PORT = 60000
-USER = "admin"
-PASSWORD = "normando"
-
-CAT_STATUS_PATH = "/usr/local/share/ad/cat_status.txt"
-FREQUENCY_PATH = "/usr/local/share/ad/frequency.txt"
 
 
 def authenticate(sock, user, password) -> None:
@@ -52,16 +47,48 @@ def save_frequency(path, data) -> None:
         outfile.write(data)
 
 
-def main():
+def main(host, port, outpath, user, password):
     "Main function"
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        start_connection(socket, HOST, PORT)
-        authenticate(sock, USER, PASSWORD)
+        start_connection(socket, host, port)
+        authenticate(sock, user, password)
         while True:
             frequency = get_frequency(sock)
-            save_frequency(FREQUENCY_PATH, frequency)
+            save_frequency(outpath, frequency)
             time.sleep(1)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(
+        description="Connect to Kenwood receiver and save frequency to file"
+    )
+    parser.add_argument(dest='host',
+                        help="Hostname or IP of receiver",
+                        )
+    parser.add_argument(dest='port',
+                        help="Port to connect to",
+                        )
+    parser.add_argument(dest="outpath",
+                        help="Path of file to save to. CAUTION: File will be overwritten")
+    parser.add_argument('-u', "--user",
+                        dest="user",
+                        help='Username, or env var USER',
+                        default=os.environ.get("USER")
+                        )
+    parser.add_argument('-p', "--password",
+                        dest="password",
+                        # Save as True if flag is present, otherwise use env var
+                        action="store_true",
+                        help="Password (interactive) or env var PASSWORD",
+                        default=os.environ.get("PASSWORD")
+                        )
+    args_namespace = parser.parse_args()
+    args = vars(args_namespace)
+
+    if args.get("password") is True:
+        # if "password" is True, user passed -p flag. Ask for password
+        interactive_password = getpass.getpass()
+        args.update({"password": interactive_password})
+
+    # Call main passing dict as named args
+    main(**args)
