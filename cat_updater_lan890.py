@@ -50,7 +50,7 @@ def save_frequency(path, data) -> None:
 def main(host, port, outpath, user, password):
     "Main function"
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        start_connection(socket, host, port)
+        start_connection(sock, host, port)
         authenticate(sock, user, password)
         while True:
             frequency = get_frequency(sock)
@@ -67,6 +67,8 @@ if __name__ == '__main__':
                         )
     parser.add_argument(dest='port',
                         help="Port to connect to",
+                        type=int,
+                        nargs="?"
                         )
     parser.add_argument(dest="outpath",
                         help="Path of file to save to. CAUTION: File will be overwritten")
