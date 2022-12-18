@@ -5,7 +5,11 @@ import getpass
 import os
 import socket
 import time
+from tenacity import retry
+from tenacity.wait import wait_fixed
+
 from exceptions import AuthenticationException
+
 
 
 def authenticate(sock, user, password) -> None:
@@ -47,6 +51,7 @@ def save_frequency(path, data) -> None:
         outfile.write(data)
 
 
+@retry(wait=wait_fixed(5))
 def main(host, port, outpath, user, password):
     "Main function"
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:

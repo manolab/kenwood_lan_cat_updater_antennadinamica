@@ -13,7 +13,7 @@ class TestProtocol(TestCase):
         cls.sock.recv = Mock()
 
     def test_login_success(self):
-        "Check authentication continues on good output"
+        "Check authentication continues on good login"
         self.sock.recv.side_effect = [b"##ID1;"]
 
         res = authenticate(self.sock, "user", "password")
@@ -21,7 +21,7 @@ class TestProtocol(TestCase):
         self.assertIsNone(res)
 
     def test_login_fail(self):
-        "Check authentication continues on good output"
+        "Check authentication fails on bad login"
         self.sock.recv.side_effect = [b"fail;"]
 
         self.assertRaises(AuthenticationException, authenticate, self.sock, "user", "password")
