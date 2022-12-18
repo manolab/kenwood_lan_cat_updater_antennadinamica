@@ -15,7 +15,7 @@ from exceptions import AuthenticationException
 def authenticate(sock, user, password) -> None:
     "Authenticates to radio"
 
-    auth_string = f"##ID0{str(len(user).zfill(2)}{str(len(password).zfill(2)}{user}{password};"
+    auth_string = f"##ID0{str(len(user)).zfill(2)}{str(len(password)).zfill(2)}{user}{password};"
     sock.sendall(auth_string.encode('utf-8'))
     data = sock.recv(1024)
     if data.decode('utf-8') != '##ID1;':
