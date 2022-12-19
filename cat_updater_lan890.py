@@ -8,9 +8,13 @@ import time
 from tenacity import retry
 from tenacity.wait import wait_fixed
 
-from exceptions import AuthenticationException
 
+class AuthenticationException(Exception):
+    "Raised when authentication fails"
 
+    def __init__(self, errorcode="unknown") -> None:
+        self.message = f"Authentication failed with code {errorcode}"
+        super().__init__(errorcode)
 
 def authenticate(sock, user, password) -> None:
     "Authenticates to radio"
