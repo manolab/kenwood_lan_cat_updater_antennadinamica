@@ -1,10 +1,9 @@
 "This program connects to a Kenwood receiver and gets current frequency"
 
-import argparse
-import getpass
 import os
 import socket
 import time
+import configparser
 from tenacity import retry
 from tenacity.wait import wait_fixed
 
@@ -85,27 +84,8 @@ def main(host, user, password):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description="Connect to Kenwood receiver and save frequency to file"
-    )
-    parser.add_argument(dest='host',
-                        help="Hostname or IP of receiver",
-                        )
-    parser.add_argument('-u', "--user",
-                        dest="user",
-                        help='Username'
-                        )
-    parser.add_argument('-p', "--password",
-                        dest="password",
-                        help="Password"
-                        )
-    args_namespace = parser.parse_args()
-    args = vars(args_namespace)
+    config = configparser.ConfigParser()
+    config.read('/etc/cat_updater_lan890')
 
-    if args.get("password") is True:
-        # if "password" is True, user passed -p flag. Ask for password
-        interactive_password = getpass.getpass()
-        args.update({"password": interactive_password})
-
-    # Call main passing dict as named args
-    main(**args)
+    # Call main passing configuration
+    main(config['DEFAULT']['Host'], config['DEFAULT']['User'],config['DEFAULT']['Password'])
