@@ -59,11 +59,10 @@ def save_data(path, data) -> None:
 
 
 @retry(wait=wait_fixed(5))
-def main(host, port, user, password):
+def main(host, user, password):
     "Main function"
-    save_data(OUTPATHST, '-5')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        start_connection(sock, host, port)
+        start_connection(sock, host, 60000)
         authenticate(sock, user, password)
         while True:
             frequency = get_frequency(sock)
@@ -78,11 +77,6 @@ if __name__ == '__main__':
     )
     parser.add_argument(dest='host',
                         help="Hostname or IP of receiver",
-                        )
-    parser.add_argument(dest='port',
-                        help="Port to connect to",
-                        type=int,
-                        nargs="?"
                         )
     parser.add_argument('-u', "--user",
                         dest="user",
@@ -101,4 +95,6 @@ if __name__ == '__main__':
         args.update({"password": interactive_password})
 
     # Call main passing dict as named args
+    save_data(OUTPATHST, '-5')
     main(**args)
+    save_data(OUTPATHST, '-5')
