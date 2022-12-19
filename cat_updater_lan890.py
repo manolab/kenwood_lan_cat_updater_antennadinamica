@@ -8,8 +8,8 @@ import time
 from tenacity import retry
 from tenacity.wait import wait_fixed
 
-OUTPATHFR = ''
-OUTPATHST = ''
+OUTPATHFR = '/usr/local/share/ad/frequency.txt'
+OUTPATHST = '/usr/local/share/ad/cat_status.txt'
 
 class AuthenticationException(Exception):
     "Raised when authentication fails"
@@ -50,6 +50,16 @@ def get_frequency(sock) -> str:
     frequency = data.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
     return frequency
 
+def get_power(sock) -> bool:
+    "Query radio for power status"
+
+    sock.sendall(b"PS;")
+    data = sock.recv(1024)
+    #print(f"Received {data!r}")
+    if data.decode('utf-8') == 'PS1;':
+        return True
+    return False
+
 
 def save_data(path, data) -> None:
     "Save frequency in a text file, overwriting it"
@@ -63,13 +73,15 @@ def main(host, user, password):
     "Main function"
     save_data(OUTPATHST, '-5')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(5)
         start_connection(sock, host, 60000)
         authenticate(sock, user, password)
-        while True:
+        while get_power(sock):
             frequency = get_frequency(sock)
             save_data(OUTPATHFR, frequency)
             save_data(OUTPATHST, '0')
             time.sleep(1)
+    raise ConnectionError
 
 
 if __name__ == '__main__':
