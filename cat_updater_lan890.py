@@ -3,44 +3,19 @@
 import argparse
 import getpass
 import os
-import socket
 import time
 from tenacity import retry
 from tenacity.wait import wait_fixed
 
-from exceptions import AuthenticationException
+from kenwood_lan import KenwoodLan
 
 
-
-def authenticate(sock, user, password) -> None:
-    "Authenticates to radio"
-
-    auth_string = f"##ID0{str(len(user)).zfill(2)}{str(len(password)).zfill(2)}{user}{password};"
-    sock.sendall(auth_string.encode('utf-8'))
-    data = sock.recv(1024)
-    if data.decode('utf-8') != '##ID1;':
-        raise AuthenticationException(data.decode('utf-8'))
-
-    sock.sendall(b"AI0;")
-
-
-def start_connection(sock, host, port) -> None:
-    "Check connection to radio is available"
-
-    sock.connect((host, port))
-    sock.sendall(b"##CN;")
-    data = sock.recv(1024)
-    if data.decode('utf-8') != '##CN1;':
-        raise ConnectionError
-
-
-def get_frequency(sock) -> str:
+def get_frequency(k: KenwoodLan) -> str:
     "Query radio for frequency"
 
-    sock.sendall(b"FA;")
-    data = sock.recv(1024)
-    #print(f"Received {data!r}")
-    frequency = data.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
+    resp = k.send_command("FA;")
+
+    frequency = resp.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
     return frequency
 
 
@@ -54,11 +29,9 @@ def save_frequency(path, data) -> None:
 @retry(wait=wait_fixed(5))
 def main(host, port, outpath, user, password):
     "Main function"
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        start_connection(sock, host, port)
-        authenticate(sock, user, password)
+    with KenwoodLan(host, port, user, password) as k:
         while True:
-            frequency = get_frequency(sock)
+            frequency = get_frequency(k)
             save_frequency(outpath, frequency)
             time.sleep(1)
 
