@@ -86,15 +86,11 @@ if __name__ == '__main__':
                         )
     parser.add_argument('-u', "--user",
                         dest="user",
-                        help='Username, or env var USER',
-                        default=os.environ.get("USER")
+                        help='Username'
                         )
     parser.add_argument('-p', "--password",
                         dest="password",
-                        # Save as True if flag is present, otherwise use env var
-                        action="store_true",
-                        help="Password (interactive) or env var PASSWORD",
-                        default=os.environ.get("PASSWORD")
+                        help="Password"
                         )
     args_namespace = parser.parse_args()
     args = vars(args_namespace)
