@@ -61,6 +61,7 @@ def save_data(path, data) -> None:
 @retry(wait=wait_fixed(5))
 def main(host, user, password):
     "Main function"
+    save_data(OUTPATHST, '-5')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         start_connection(sock, host, 60000)
         authenticate(sock, user, password)
@@ -95,6 +96,4 @@ if __name__ == '__main__':
         args.update({"password": interactive_password})
 
     # Call main passing dict as named args
-    save_data(OUTPATHST, '-5')
     main(**args)
-    save_data(OUTPATHST, '-5')
