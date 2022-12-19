@@ -8,6 +8,8 @@ import time
 from tenacity import retry
 from tenacity.wait import wait_fixed
 
+OUTPATHFR = ''
+OUTPATHST = ''
 
 class AuthenticationException(Exception):
     "Raised when authentication fails"
@@ -44,11 +46,12 @@ def get_frequency(sock) -> str:
     sock.sendall(b"FA;")
     data = sock.recv(1024)
     #print(f"Received {data!r}")
+    #frequency = data.decode('utf-8')[2:].lstrip("0")[0:-4]+'000'
     frequency = data.decode('utf-8')[2:].lstrip("0")[0:-3]+'00'
     return frequency
 
 
-def save_frequency(path, data) -> None:
+def save_data(path, data) -> None:
     "Save frequency in a text file, overwriting it"
 
     with open(path, "w", encoding="utf-8") as outfile:
@@ -56,14 +59,16 @@ def save_frequency(path, data) -> None:
 
 
 @retry(wait=wait_fixed(5))
-def main(host, port, outpath, user, password):
+def main(host, port, user, password):
     "Main function"
+    save_data(OUTPATHST, '-5')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         start_connection(sock, host, port)
         authenticate(sock, user, password)
         while True:
             frequency = get_frequency(sock)
-            save_frequency(outpath, frequency)
+            save_data(OUTPATHFR, frequency)
+            save_data(OUTPATHST, '0')
             time.sleep(1)
 
 
@@ -79,8 +84,6 @@ if __name__ == '__main__':
                         type=int,
                         nargs="?"
                         )
-    parser.add_argument(dest="outpath",
-                        help="Path of file to save to. CAUTION: File will be overwritten")
     parser.add_argument('-u', "--user",
                         dest="user",
                         help='Username, or env var USER',
