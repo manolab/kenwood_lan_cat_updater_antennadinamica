@@ -4,15 +4,18 @@ from asyncio import StreamReader, StreamWriter
 
 from kenwood_lan import KenwoodLan
 
+KENWOOD_LOCK = asyncio.Lock()
+
 async def echo(reader: StreamReader, writer: StreamWriter, k: KenwoodLan):
     print('New connection.')
     loop = asyncio.get_running_loop()
     try:
         while data := await reader.readline():
-            command = data.decode('ascii').strip()
-            output = await loop.run_in_executor(None, lambda: k.send_command(command))
-            writer.write(output.encode('ascii'))
-            await writer.drain()
+            async with KENWOOD_LOCK:
+                command = data.decode('ascii').strip()
+                output = await loop.run_in_executor(None, lambda: k.send_command(command))
+                writer.write((output + "\n").encode('ascii'))
+                await writer.drain()
         print('Leaving Connection.')
 
     except asyncio.CancelledError:
