@@ -6,6 +6,13 @@ from kenwood_lan import KenwoodLan
 
 KENWOOD_LOCK = asyncio.Lock()
 
+
+async def ping():
+    print("Ping")
+    await asyncio.sleep(2)
+    asyncio.create_task(ping())
+
+
 async def echo(reader: StreamReader, writer: StreamWriter, k: KenwoodLan):
     print('New connection.')
     loop = asyncio.get_running_loop()
@@ -23,9 +30,12 @@ async def echo(reader: StreamReader, writer: StreamWriter, k: KenwoodLan):
 
 
 async def main(host, port, k):
+    asyncio.create_task(ping())
     server = await asyncio.start_server(lambda r, w: echo(r, w, k), host, port)
+
     async with server:
         await server.serve_forever()
+
 
 try:
     k = KenwoodLan("localhost", 8081, "admin", "admin")
