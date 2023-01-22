@@ -9,6 +9,7 @@ from tenacity.wait import wait_fixed
 
 OUTPATHFR = '/usr/local/share/ad/frequency.txt'
 OUTPATHST = '/usr/local/share/ad/cat_status.txt'
+OUTPATHCS = '/var/www/html/ad/data/ant_num_1/cat_on.txt'
 
 class AuthenticationException(Exception):
     "Raised when authentication fails"
@@ -41,8 +42,13 @@ def start_connection(sock, host, port) -> None:
 
 def get_frequency(sock) -> str:
     "Query radio for frequency"
-
-    sock.sendall(b"FA;")
+    #Which VFO is TX? That one has the frequency where to tune to
+    sock.sendall(b"FT;")
+    data = sock.recv(1024)
+    if data.decode('utf-8') == 'FT0;':
+        sock.sendall(b"FA;")
+    else:
+        sock.sendall(b"FB;")
     data = sock.recv(1024)
     #print(f"Received {data!r}")
     #frequency = data.decode('utf-8')[2:].lstrip("0")[0:-4]+'000'
@@ -70,7 +76,9 @@ def save_data(path, data) -> None:
 @retry(wait=wait_fixed(5))
 def main(host, user, password):
     "Main function"
+    #Disable CAT on PowerOff
     save_data(OUTPATHST, '-5')
+    save_data(OUTPATHCS, '0')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(5)
         start_connection(sock, host, 60000)
@@ -78,6 +86,7 @@ def main(host, user, password):
         while get_power(sock):
             frequency = get_frequency(sock)
             save_data(OUTPATHFR, frequency)
+            #Enable CAT if PoweredON
             save_data(OUTPATHST, '0')
             time.sleep(1)
     raise ConnectionError
