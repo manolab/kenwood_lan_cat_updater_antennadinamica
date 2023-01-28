@@ -1,11 +1,13 @@
 [Unit]
-After=network.target
+After=network-online.target
+Wants=network-online.target
 Description=Kenwood CAT Updater
 
 [Service]
 Restart=always
 RestartSec=10s
+Restart=on-failure
 ExecStart=/usr/bin/python3 /usr/local/bin/cat_updater_lan890.py
 
 [Install]
-WantedBy=multi-user.service
+WantedBy=multi-user.target
